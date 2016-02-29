@@ -4,6 +4,7 @@ import (
 	//"crypto/rsa"
 	"errors"
 	//"flag"
+	"strings"
 	"io/ioutil"
 	//"log"
 	//"net"
@@ -105,31 +106,13 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 	}
 	*/
 	
-	//fmt.Println(bow.Url().String())
-	//fmt.Println(bow.Body())
-	//fmt.Println(bow.ResponseHeaders().Get("Location"))
-	
-	/*
-	resp_url, resp_err := resp3.Location()
-	if resp_err != nil {
-		return bow, resp_err
-	}
-	fmt.Println(resp_url.String())
-	err = bow.Open("https://www.ubcengcore.com/myAccount/dashboard.htm")
-	if err != nil {
-		return bow, err
-	}
-	
-	fmt.Println(bow.Url().String())	
-	fmt.Println(bow.Body())
-	*/
-	
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return bow, err
 	}
 	client := &http.Client{
 		Jar: jar,
+		Timeout: time.Duration(5 * time.Second),
 	}
 	
 	resp, err := client.Get("https://ubcengcore.com/secure/shibboleth.htm")
@@ -137,8 +120,7 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		return bow, err
 	}
 	defer resp.Body.Close()
-	//body, _ := ioutil.ReadAll(resp.Body)
-	//log.Println(string(body))
+	body, _ := ioutil.ReadAll(resp.Body)
 
 	// Log into shibboleth
 	resp2, err := client.PostForm("https://shibboleth2.id.ubc.ca/idp/Authn/UserPassword", url.Values{
@@ -169,28 +151,8 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		return bow, err
 	}
 	defer resp3.Body.Close()
-	body, _ := ioutil.ReadAll(resp3.Body)
-	//fmt.Println(string(body))	
-	/*	
-	resp_url, resp_err := resp3.Location()
-        if resp_err != nil {
-                return bow, resp_err
-        }
-        fmt.Println(resp_url.String())
-       	 
-	// Continue EngCore login
-	doc2, err := goquery.NewDocumentFromResponse(resp3)
-	if err != nil {
-		return bow, err
-	}
-	action = doc2.Find("form").AttrOr("action", "")
-
-	resp4, err := client.PostForm(action, nil)
-	if err != nil {
-		return bow, err
-	}
-	defer resp4.Body.Close()
-	*/
+	body, _ = ioutil.ReadAll(resp3.Body)
+	fmt.Println(string(body))	
 	bow.SetCookieJar(client.Jar)
 	resp5, err := client.Get("https://www.ubcengcore.com/secure/shibboleth.htm")
 	if err != nil {
@@ -205,7 +167,6 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		return bow, err
 	}
 	defer resp6.Body.Close()
-	
 	
 	err = bow.Open("https://www.ubcengcore.com/myAccount")
         if err != nil {
@@ -318,8 +279,13 @@ func main() {
 	bow, err := user.loginToEngCore()
 	fmt.Println("Finished logging into EngCore")
 	if err != nil {
-		fmt.Println("Error is: " +err.Error())
-		panic(err)
+		if strings.Contains(err.Error(), "use of closed network connection") {
+			fmt.Println("UBC EngCore throttling error")
+			return
+		} else {
+			fmt.Println("Error is: " +err.Error())
+			panic(err)
+		}
 	}
 
 	go pingEngCore(bow)
@@ -344,7 +310,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	
 	go pollActivator(db, key)
 	go activateEverything(db, key)
