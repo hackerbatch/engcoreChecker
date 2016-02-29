@@ -4,8 +4,9 @@ import (
 	//"crypto/rsa"
 	"errors"
 	//"flag"
-	//"io/ioutil"
+	"io/ioutil"
 	//"log"
+	//"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -18,7 +19,7 @@ import (
 	"github.com/headzoo/surf/browser"
 	//_ "github.com/mattn/go-sqlite3"
 	"fmt"
-	"bytes"
+	//"bytes"
 )
 
 type User struct {
@@ -42,36 +43,88 @@ var (
 func (u *User) loginToEngCore() (*browser.Browser, error) {
 	bow := surf.NewBrowser()
 	bow.SetCookieJar(jar.NewMemoryCookies())
-	err := bow.Open("https://www.ubcengcore.com/students")
+	bow.SetAttributes(browser.AttributeMap{
+		browser.SendReferer:         true,
+		browser.MetaRefreshHandling: true,
+		browser.FollowRedirects:     true,
+	})
+	/*	
+	err := bow.Open("https://www.ubcengcore.com/secure/shibboleth.htm") 
 	if err != nil {
 		return bow, err
 	}
 	// Click the login button
-	err = bow.Click(".customContentContainer > p:nth-child(2) > a:nth-child(1)")
+	bow.Click(".customContentContainer > p:nth-child(2) > a:nth-child(1)")
 	if err != nil {
 		return bow, err
 	}
+	*/
 	
+	/*	
 	// Log into shibboleth	
 	// Should output "The University of British Columbia"
 	fmt.Println(bow.Title())
-	
+	fmt.Println(bow.Url().String())
 	form, form_err := bow.Form("form[name='loginForm']")
 	if form_err != nil {
 		return bow, form_err
 	}
-
+	
+	actionUrl, err := url.Parse(form.Action())
+	host, _, _ := net.SplitHostPort(actionUrl.Host)
+	fmt.Println("modified url: https://" + host + actionUrl.Path)
+	
 	form.Input("j_username", u.Username)
 	form.Input("j_password", u.Password)
+	
+	err = form.Submit()
+	fmt.Println("about to submit form")
+	if err != nil {
+		return bow, err
+	}
+	fmt.Println("submitted form")
+	fmt.Println(bow.Url().String())
+	
+	form, form_err = bow.Form("form")
+	if form_err != nil {
+		return bow, form_err
+	}
+	
+	relayState, _ := bow.Dom().Find("input[name='RelayState']").Attr("value")
+	//fmt.Println("RelayState Value: " + relayState)
+	form.Input("RelayState", relayState)
+	
+	samlResponse, _ := bow.Dom().Find("input[name='SAMLResponse']").Attr("value")
+	form.Input("SAMLResponse", samlResponse)
+	form.Set("action", "Continue")
+	fmt.Println("Form action: " + form.Action())
 	
 	err = form.Submit()
 	if err != nil {
 		return bow, err
 	}
-
+	*/
+	
+	//fmt.Println(bow.Url().String())
+	//fmt.Println(bow.Body())
+	//fmt.Println(bow.ResponseHeaders().Get("Location"))
+	
+	/*
+	resp_url, resp_err := resp3.Location()
+	if resp_err != nil {
+		return bow, resp_err
+	}
+	fmt.Println(resp_url.String())
+	err = bow.Open("https://www.ubcengcore.com/myAccount/dashboard.htm")
+	if err != nil {
+		return bow, err
+	}
+	
+	fmt.Println(bow.Url().String())	
+	fmt.Println(bow.Body())
+	*/
+	
 	jar, err := cookiejar.New(nil)
-	jar.SetCookies(bow.Url(), bow.SiteCookies())
-
 	if err != nil {
 		return bow, err
 	}
@@ -79,9 +132,27 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		Jar: jar,
 	}
 	
+	resp, err := client.Get("https://ubcengcore.com/secure/shibboleth.htm")
+	if err != nil {
+		return bow, err
+	}
+	defer resp.Body.Close()
+	//body, _ := ioutil.ReadAll(resp.Body)
+	//log.Println(string(body))
+
+	// Log into shibboleth
+	resp2, err := client.PostForm("https://shibboleth2.id.ubc.ca/idp/Authn/UserPassword", url.Values{
+		"j_username": {u.Username},
+		"j_password": {u.Password},
+		"action":     {"Continue"},
+	})
+	if err != nil {
+		return bow, err
+	}
+	defer resp2.Body.Close()
+
 	// Continue SAML
-	r := bytes.NewReader([]byte( bow.Body() ))
-	doc, err := goquery.NewDocumentFromReader(r)
+	doc, err := goquery.NewDocumentFromResponse(resp2)
 	if err != nil {
 		return bow, err
 	}
@@ -95,22 +166,51 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		"action":       {"Continue"},
 	})
 	if err != nil {
-		fmt.Println("Error with response3")
 		return bow, err
 	}
-	fmt.Println("got past SAML")
 	defer resp3.Body.Close()
-	
+	body, _ := ioutil.ReadAll(resp3.Body)
+	//fmt.Println(string(body))	
+	/*	
 	resp_url, resp_err := resp3.Location()
-	if resp_err != nil {
-		return bow, resp_err
-	}
-
-	err = bow.Open(resp_url.String())
+        if resp_err != nil {
+                return bow, resp_err
+        }
+        fmt.Println(resp_url.String())
+       	 
+	// Continue EngCore login
+	doc2, err := goquery.NewDocumentFromResponse(resp3)
 	if err != nil {
 		return bow, err
 	}
+	action = doc2.Find("form").AttrOr("action", "")
 
+	resp4, err := client.PostForm(action, nil)
+	if err != nil {
+		return bow, err
+	}
+	defer resp4.Body.Close()
+	*/
+	bow.SetCookieJar(client.Jar)
+	resp5, err := client.Get("https://www.ubcengcore.com/secure/shibboleth.htm")
+	if err != nil {
+		return bow, err
+	}
+	defer resp5.Body.Close()
+	body, _ = ioutil.ReadAll(resp5.Body)
+	fmt.Println(string(body))
+	
+	resp6, err := client.Get("https://www.ubcengcore.com/myAccount")
+	if err != nil {
+		return bow, err
+	}
+	defer resp6.Body.Close()
+	
+	
+	err = bow.Open("https://www.ubcengcore.com/myAccount")
+        if err != nil {
+                return bow, err
+        }
 	return bow, nil
 }
 
