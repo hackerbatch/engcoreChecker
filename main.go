@@ -101,6 +101,16 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 	fmt.Println("got past SAML")
 	defer resp3.Body.Close()
 	
+	resp_url, resp_err := resp3.Location()
+	if resp_err != nil {
+		return bow, resp_err
+	}
+
+	err = bow.Open(resp_url.String())
+	if err != nil {
+		return bow, err
+	}
+
 	return bow, nil
 }
 
@@ -205,21 +215,20 @@ func main() {
 		Password: "ptW7$7MM",
 	}
 	
-	_, err := user.loginToEngCore()
+	bow, err := user.loginToEngCore()
 	fmt.Println("Finished logging into EngCore")
 	if err != nil {
 		fmt.Println("Error is: " +err.Error())
 		panic(err)
 	}
 
-	//pingEngCore(bow)
+	go pingEngCore(bow)
 	// output logs to the terminal
-	//for i := range c {
-	//	fmt.Println(i)
-	//}
+	for i := range c {
+		fmt.Println(i)
+	}
 
 	fmt.Println("Done")
-	return
 
 	/*
 	flag.Parse()
