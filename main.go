@@ -51,62 +51,6 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		browser.MetaRefreshHandling: true,
 		browser.FollowRedirects:     true,
 	})
-	/*	
-	err := bow.Open("https://www.ubcengcore.com/secure/shibboleth.htm") 
-	if err != nil {
-		return bow, err
-	}
-	// Click the login button
-	bow.Click(".customContentContainer > p:nth-child(2) > a:nth-child(1)")
-	if err != nil {
-		return bow, err
-	}
-	*/
-	
-	/*	
-	// Log into shibboleth	
-	// Should output "The University of British Columbia"
-	fmt.Println(bow.Title())
-	fmt.Println(bow.Url().String())
-	form, form_err := bow.Form("form[name='loginForm']")
-	if form_err != nil {
-		return bow, form_err
-	}
-	
-	actionUrl, err := url.Parse(form.Action())
-	host, _, _ := net.SplitHostPort(actionUrl.Host)
-	fmt.Println("modified url: https://" + host + actionUrl.Path)
-	
-	form.Input("j_username", u.Username)
-	form.Input("j_password", u.Password)
-	
-	err = form.Submit()
-	fmt.Println("about to submit form")
-	if err != nil {
-		return bow, err
-	}
-	fmt.Println("submitted form")
-	fmt.Println(bow.Url().String())
-	
-	form, form_err = bow.Form("form")
-	if form_err != nil {
-		return bow, form_err
-	}
-	
-	relayState, _ := bow.Dom().Find("input[name='RelayState']").Attr("value")
-	//fmt.Println("RelayState Value: " + relayState)
-	form.Input("RelayState", relayState)
-	
-	samlResponse, _ := bow.Dom().Find("input[name='SAMLResponse']").Attr("value")
-	form.Input("SAMLResponse", samlResponse)
-	form.Set("action", "Continue")
-	fmt.Println("Form action: " + form.Action())
-	
-	err = form.Submit()
-	if err != nil {
-		return bow, err
-	}
-	*/
 	
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -153,8 +97,8 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		return bow, err
 	}
 	defer resp3.Body.Close()
-	body, _ = ioutil.ReadAll(resp3.Body)
-	fmt.Println(string(body))	
+	//body, _ = ioutil.ReadAll(resp3.Body)
+	
 	bow.SetCookieJar(client.Jar)
 	resp5, err := client.Get("https://www.ubcengcore.com/secure/shibboleth.htm")
 	if err != nil {
@@ -162,7 +106,7 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 	}
 	defer resp5.Body.Close()
 	body, _ = ioutil.ReadAll(resp5.Body)
-	fmt.Println(string(body))
+	//fmt.Println(string(body))
 	
 	resp6, err := client.Get("https://www.ubcengcore.com/myAccount")
 	if err != nil {
