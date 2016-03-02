@@ -87,11 +87,11 @@ $('#renew').click(function() {
 			yVal = yVal +  Math.round(5 + Math.random() *(-5-5));
 			
 			$.ajax({
-        url: 'api/v1/getPoint/',
+        url: 'api/v1/getPoint',
         success: function (result) {
             if (result.isOk == false) alert(result.message);
 				console.log(result)
-        },
+            },
         async: false
     	});
 			
@@ -108,12 +108,13 @@ $('#renew').click(function() {
 	
 		chart.render();		
 	};
-
+	/*
 	// generates first set of dataPoints
 	updateChart(dataLength); 
 
 	// update chart after specified time. 
 	setInterval(function(){updateChart()}, updateInterval)	
+	*/
 });
 </script>
 </body>

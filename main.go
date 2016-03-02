@@ -119,8 +119,8 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 }
 
 type PingRecord struct {
-	lagTime		string
-	url		string
+	LagTime		string
+	Url		string
 }
 
 var (
@@ -154,7 +154,7 @@ func pingEngCore(bow *browser.Browser) {
 	var numPing int64 = 0
 	//var avgPing int64 = 0
 
-	//Loop while our seesion hasn't expired
+	//Loop while our session hasn't expired
 	for err == nil {
 		//lag timer start
 		start := time.Now()
@@ -169,8 +169,8 @@ func pingEngCore(bow *browser.Browser) {
 		} else {
 			lag := time.Since(start)
 			//var msg string
-			currPing := &PingRecord{
-				url: pingUrl,
+			currPing := PingRecord{
+				Url: pingUrl,
 			}		
 			
 			numPing++
@@ -185,8 +185,8 @@ func pingEngCore(bow *browser.Browser) {
 			//msg = pingUrl + ", lag: " + lag.String()
 			//c <- msg
 	
-			currPing.lagTime = lag.String()
-			c <- currPing	
+			currPing.LagTime = lag.String()
+			c <- &currPing	
 	
 			res.Body.Close()
 		}
@@ -224,21 +224,24 @@ func main() {
 	
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/api/v1/getPoint", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Got /api/v1/getPoint HTTP GET request")
+
 		val := <-c
 		if val == nil {
+			fmt.Println("val is nil")
 			http.Error(w, "No data could be sent", 400)
 			return
-		} else {
-			js, err := json.Marshal(val)
-			
-			if err != nil {
-    				http.Error(w, err.Error(), http.StatusInternalServerError)
-    				return
-  			}			
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(js)
-		}
-	
+		} 
+		
+		js, err := json.Marshal(val)
+		fmt.Println(val.LagTime)		
+		fmt.Println(js)
+		if err != nil {
+    			http.Error(w, err.Error(), http.StatusInternalServerError)
+   			return
+		}			
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
 	})
 
 	http.HandleFunc("/api/v1/check", func(w http.ResponseWriter, r *http.Request) {
