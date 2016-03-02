@@ -1,18 +1,19 @@
 package main
 
 import (
-	//"crypto/rsa"
+	//"crypto/rsa"	
+	"encoding/json"
 	"errors"
 	"flag"
 	"strings"
-	"io/ioutil"
+	//"io/ioutil"
 	"log"
 	//"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"time"
-	"strconv"
+	//"strconv"
 	"github.com/headzoo/surf"
 	"github.com/headzoo/surf/jar"
 	"github.com/PuerkitoBio/goquery"
@@ -39,10 +40,6 @@ func (u User) Validate() error {
 	return nil
 }
 
-var (
-	c = make(chan string)
-)
-
 func (u *User) loginToEngCore() (*browser.Browser, error) {
 	bow := surf.NewBrowser()
 	bow.SetCookieJar(jar.NewMemoryCookies())
@@ -66,7 +63,7 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		return bow, err
 	}
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	//body, _ := ioutil.ReadAll(resp.Body)
 
 	// Log into shibboleth
 	resp2, err := client.PostForm("https://shibboleth2.id.ubc.ca/idp/Authn/UserPassword", url.Values{
@@ -105,7 +102,7 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 		return bow, err
 	}
 	defer resp5.Body.Close()
-	body, _ = ioutil.ReadAll(resp5.Body)
+	//body, _ = ioutil.ReadAll(resp5.Body)
 	//fmt.Println(string(body))
 	
 	resp6, err := client.Get("https://www.ubcengcore.com/myAccount")
@@ -120,6 +117,16 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
         }
 	return bow, nil
 }
+
+type PingRecord struct {
+	lagTime		string
+	url		string
+}
+
+var (
+         c = make(chan *PingRecord)
+)
+
 
 //Record engcore pingback times
 func pingEngCore(bow *browser.Browser) {
@@ -142,10 +149,10 @@ func pingEngCore(bow *browser.Browser) {
 		panic(err)	
 	}
 	
-	timeoutStart := time.Now()
+	//timeoutStart := time.Now()
 	var totalPing int64 = 0
 	var numPing int64 = 0
-	var avgPing int64 = 0
+	//var avgPing int64 = 0
 
 	//Loop while our seesion hasn't expired
 	for err == nil {
@@ -155,65 +162,45 @@ func pingEngCore(bow *browser.Browser) {
 		res, err := client.Get(pingUrl)
 		if err != nil {
 			msg := "Error:" + err.Error()
-			c <- msg
+			//c <- msg
+			log.Println(msg)
+			fmt.Println(msg)
+			break	
 		} else {
 			lag := time.Since(start)
-			var msg string
+			//var msg string
+			currPing := &PingRecord{
+				url: pingUrl,
+			}		
 			
 			numPing++
 			totalPing = totalPing + int64(lag) 
 
 			//	running slow
 			if lag > time.Duration(300)*time.Second {
-				msg = pingUrl + " lag: " + lag.String()
-			}
+				//msg = pingUrl + " lag: " + lag.String()
+				//currPing.lagTime = lag.String()	
+			}	
 
-			msg = pingUrl + ", lag: " + lag.String()
-			c <- msg
-
+			//msg = pingUrl + ", lag: " + lag.String()
+			//c <- msg
+	
+			currPing.lagTime = lag.String()
+			c <- currPing	
+	
 			res.Body.Close()
 		}
 	}
 	
-	timeoutPeriod := time.Since(timeoutStart)
-	avgPing = totalPing/numPing
+	//timeoutPeriod := time.Since(timeoutStart)
+	//avgPing = totalPing/numPing
 	
 	//This is a bit hacky
-	msg := "Timeout Period was:" + timeoutPeriod.String() + " average ping lag: " + strconv.FormatInt(avgPing, 10) 
-	c <- msg
+	//msg := "Timeout Period was:" + timeoutPeriod.String() + " average ping lag: " + strconv.FormatInt(avgPing, 10) 
+	//c <- msg
 	close(c) 
 }
-/*
-	func activateEverything(db gorm.DB, key *rsa.PrivateKey) {
-		log.Println("Checking for new UPasses...")
-		var users []*User
-		db.Find(&users)
-		for i, user := range users {
-			if err := user.Decrypt(key); err != nil {
-				log.Printf("ERR decrypting %s, %s", user.Username, err)
-				continue
-			}
-			if err := user.Activate(); err != nil {
-				log.Printf("ERR activating %s, %s", user.Username, err)
-				continue
-			}
-			if err := user.Decrypt(key); err != nil {
-				log.Printf("ERR decrypting %s, %s", user.Username, err)
-				continue
-			}
-			db.Model(user).Update("last_activated", user.LastActivated)
-			// Remove decrypted version from memory.
-			users[i] = nil
-		}
-	}
 
-	func pollActivator(db gorm.DB, key *rsa.PrivateKey) {
-		ticker := time.NewTicker(24 * time.Hour)
-		for _ = range ticker.C {
-			activateEverything(db, key)
-		}
-	}
-*/
 var addr = flag.String("addr", ":3000", "The address to listen on.")
 
 func main() {	
@@ -234,7 +221,26 @@ func main() {
 	//go pollActivator(db, key)
 	//go activateEverything(db, key)
 
+	
 	http.Handle("/", http.FileServer(http.Dir("./static")))
+	http.HandleFunc("/api/v1/getPoint", func(w http.ResponseWriter, r *http.Request) {
+		val := <-c
+		if val == nil {
+			http.Error(w, "No data could be sent", 400)
+			return
+		} else {
+			js, err := json.Marshal(val)
+			
+			if err != nil {
+    				http.Error(w, err.Error(), http.StatusInternalServerError)
+    				return
+  			}			
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(js)
+		}
+	
+	})
+
 	http.HandleFunc("/api/v1/check", func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), 400)
@@ -270,9 +276,9 @@ func main() {
 		}
 
 		go pingEngCore(bow)
-		for i := range c {
-			fmt.Println(i)
-		}
+		//for i := range c {
+		//	fmt.Println(i)
+		//}
 		
 		if err := user.Encrypt(key); err != nil {
 			http.Error(w, err.Error(), 500)
