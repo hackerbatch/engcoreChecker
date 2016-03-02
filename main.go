@@ -119,7 +119,7 @@ func (u *User) loginToEngCore() (*browser.Browser, error) {
 }
 
 type PingRecord struct {
-	LagTime		string
+	LagTime		int64
 	Url		string
 }
 
@@ -185,7 +185,7 @@ func pingEngCore(bow *browser.Browser) {
 			//msg = pingUrl + ", lag: " + lag.String()
 			//c <- msg
 	
-			currPing.LagTime = lag.String()
+			currPing.LagTime = lag.Nanoseconds()
 			c <- &currPing	
 	
 			res.Body.Close()
@@ -224,7 +224,7 @@ func main() {
 	
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/api/v1/getPoint", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("Got /api/v1/getPoint HTTP GET request")
+		//fmt.Println("Got /api/v1/getPoint HTTP GET request")
 
 		val := <-c
 		if val == nil {
@@ -234,8 +234,8 @@ func main() {
 		} 
 		
 		js, err := json.Marshal(val)
-		fmt.Println(val.LagTime)		
-		fmt.Println(js)
+		//fmt.Println(val.LagTime)		
+		//fmt.Println(js)
 		if err != nil {
     			http.Error(w, err.Error(), http.StatusInternalServerError)
    			return
