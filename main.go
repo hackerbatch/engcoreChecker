@@ -3,10 +3,10 @@ package main
 import (
 	//"crypto/rsa"
 	"errors"
-	//"flag"
+	"flag"
 	"strings"
 	"io/ioutil"
-	//"log"
+	"log"
 	//"net"
 	"net/http"
 	"net/http/cookiejar"
@@ -16,15 +16,17 @@ import (
 	"github.com/headzoo/surf"
 	"github.com/headzoo/surf/jar"
 	"github.com/PuerkitoBio/goquery"
-	//"github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm"
 	"github.com/headzoo/surf/browser"
-	//_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"fmt"
 	//"bytes"
 )
 
 type User struct {
 	Username, Password             string
+	LastChecked		       time.Time
+	Encrypted		       bool
 }
 
 func (u User) Validate() error {
@@ -267,36 +269,10 @@ func pingEngCore(bow *browser.Browser) {
 			activateEverything(db, key)
 		}
 	}
-
-	var addr = flag.String("addr", ":3000", "The address to listen on.")
 */
-func main() {
-	user := &User{
-		Username: "davidb7",
-		Password: "ptW7$7MM",
-	}
-	
-	bow, err := user.loginToEngCore()
-	fmt.Println("Finished logging into EngCore")
-	if err != nil {
-		if strings.Contains(err.Error(), "use of closed network connection") {
-			fmt.Println("UBC EngCore throttling error")
-			return
-		} else {
-			fmt.Println("Error is: " +err.Error())
-			panic(err)
-		}
-	}
+var addr = flag.String("addr", ":3000", "The address to listen on.")
 
-	go pingEngCore(bow)
-	// output logs to the terminal
-	for i := range c {
-		fmt.Println(i)
-	}
-
-	fmt.Println("Done")
-
-	/*
+func main() {	
 	flag.Parse()
 
 	db, err := gorm.Open("sqlite3", "./user.db")
@@ -311,11 +287,11 @@ func main() {
 		log.Fatal(err)
 	}
 	
-	go pollActivator(db, key)
-	go activateEverything(db, key)
+	//go pollActivator(db, key)
+	//go activateEverything(db, key)
 
 	http.Handle("/", http.FileServer(http.Dir("./static")))
-	http.HandleFunc("/api/v1/test", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/v1/check", func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, err.Error(), 400)
 			return
@@ -324,14 +300,36 @@ func main() {
 			Username:   r.FormValue("username"),
 			Password:   r.FormValue("password"),
 		}
+		/*		
+		user := &User{
+			Username: "user",
+			Password: "pass",
+		}
+		*/
+			
 		if err := user.Validate(); err != nil {
 			http.Error(w, err.Error(), 400)
 			return
 		}
-		if err := user.Activate(); err != nil {
-			http.Error(w, err.Error(), 400)
-			return
+		
+		bow, err := user.loginToEngCore()
+		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				log.Println("UBC EngCore login throttling error")
+				http.Error(w, "UBC EngCore login throttling", 400)
+				return
+			} else {
+				log.Println("Error is: " +err.Error())
+				http.Error(w, err.Error(), 400)
+				return
+			}
 		}
+
+		go pingEngCore(bow)
+		for i := range c {
+			fmt.Println(i)
+		}
+		
 		if err := user.Encrypt(key); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -344,5 +342,4 @@ func main() {
 	})
 	log.Printf("Listening on %s", *addr)
 	log.Fatal(http.ListenAndServe(*addr, nil))
-	*/
 }
