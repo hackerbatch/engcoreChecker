@@ -14,6 +14,6 @@ Key Password:
 ```
 
 ## License
-EngCorre Checker is licensed under the Apache 2.0 license.
+EngCore Checker is licensed under the Apache 2.0 license.
 
 Made by [David Baldwynn](https://baldwynn.me).
