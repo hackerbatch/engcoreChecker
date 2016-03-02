@@ -221,11 +221,8 @@ func main() {
 	//go pollActivator(db, key)
 	//go activateEverything(db, key)
 
-	
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/api/v1/getPoint", func(w http.ResponseWriter, r *http.Request) {
-		//fmt.Println("Got /api/v1/getPoint HTTP GET request")
-
 		val := <-c
 		if val == nil {
 			fmt.Println("val is nil")
@@ -234,8 +231,6 @@ func main() {
 		} 
 		
 		js, err := json.Marshal(val)
-		//fmt.Println(val.LagTime)		
-		//fmt.Println(js)
 		if err != nil {
     			http.Error(w, err.Error(), http.StatusInternalServerError)
    			return
@@ -253,12 +248,6 @@ func main() {
 			Username:   r.FormValue("username"),
 			Password:   r.FormValue("password"),
 		}
-		/*		
-		user := &User{
-			Username: "user",
-			Password: "pass",
-		}
-		*/
 			
 		if err := user.Validate(); err != nil {
 			http.Error(w, err.Error(), 400)
@@ -279,9 +268,6 @@ func main() {
 		}
 
 		go pingEngCore(bow)
-		//for i := range c {
-		//	fmt.Println(i)
-		//}
 		
 		if err := user.Encrypt(key); err != nil {
 			http.Error(w, err.Error(), 500)
